@@ -178,6 +178,40 @@
             font-size: 14px;
         }
         .contact-label { font-weight: 600; color: #888; }
+        .summary-box {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f7fbff;
+            border: 1px solid #e1eefb;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .summary-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .summary-row:last-child { margin-bottom: 0; }
+        .toggle-details {
+            margin-top: 12px;
+            background: transparent;
+            color: #4a90d9;
+            border: 1px solid #cfe1f6;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .toggle-details:hover {
+            background: #f2f8ff;
+        }
+        .details-panel {
+            margin-top: 12px;
+        }
+        .label-warning { background: #fff3cd; color: #856404; }
+        .label-muted { background: #f1f3f5; color: #666; }
+        .label-danger { background: #fdeaea; color: #b42318; }
         
         .loading, .empty {
             text-align: center;
@@ -367,7 +401,8 @@
                 }
 
                 if (!data.items || data.items.length === 0) {
-                    container.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>';
+                    const emptyMsg = keyword ? '未找到匹配的供应商，请尝试其他关键词' : '暂无供应商数据，请先添加供应商';
+                    container.innerHTML = '<div class="empty"><div class="icon">📭</div><p>' + emptyMsg + '</p></div>';
                     return;
                 }
 
@@ -378,42 +413,71 @@
             }
         }
 
+        function getStatusLabelClass(status) {
+            if (status === '合作中') return 'label-success';
+            if (status === '暂停') return 'label-warning';
+            if (status === '停用') return 'label-danger';
+            return 'label-muted';
+        }
+
+        function renderContactDetail(contact) {
+            let html = '<div class="contact-item' + (contact.is_primary ? ' is-primary' : '') + '">';
+            if (contact.is_primary) html += '<span class="primary-badge">主要</span>';
+            html += '<div class="contact-details">';
+            html += '<div class="contact-row"><span class="contact-label">姓名：</span><span class="contact-value">' + escapeHtml(contact.contact_name) + '</span><span class="contact-label" style="margin-left:12px">职位：</span><span class="contact-value">' + escapeHtml(contact.position || '-') + '</span></div>';
+            html += '<div class="contact-row"><span class="contact-label">手机：</span><span class="contact-value">' + escapeHtml(contact.mobile || contact.phone || '-') + '</span><span class="contact-label" style="margin-left:12px">邮箱：</span><span class="contact-value">' + escapeHtml(contact.email || '-') + '</span></div>';
+            html += '<div class="contact-row"><span class="contact-label">微信：</span><span class="contact-value">' + escapeHtml(contact.wechat || '-') + '</span>';
+            if (contact.remark) {
+                html += '<span class="contact-label" style="margin-left:12px">备注：</span><span class="contact-value">' + escapeHtml(contact.remark) + '</span>';
+            }
+            html += '</div></div></div>';
+            return html;
+        }
+
         function renderResults(data) {
             const container = document.getElementById('resultsContainer');
             
             let html = '<div class="results-info">共找到 <strong>' + data.totalItems + '</strong> 条记录</div>';
             html += '<div class="results-list">';
 
-            data.items.forEach(supplier => {
+            data.items.forEach((supplier, index) => {
+                const primaryContact = (supplier.contacts || []).find(contact => contact.is_primary) || (supplier.contacts || [])[0] || null;
+                const detailsId = 'details-' + supplier.id + '-' + index;
+
                 html += '<div class="result-card">';
                 html += '<div class="card-header">';
                 html += '<h5 class="supplier-name">' + escapeHtml(supplier.supplier_name) + '</h5>';
                 html += '<span class="label label-info">' + escapeHtml(supplier.supplier_type) + '</span>';
-                html += '<span class="label label-success">' + escapeHtml(supplier.status) + '</span>';
+                html += '<span class="label ' + getStatusLabelClass(supplier.status) + '">' + escapeHtml(supplier.status) + '</span>';
                 html += '</div>';
 
                 html += '<div class="card-body">';
                 html += '<div class="info-row"><span class="info-label">供应商编码：</span><span class="info-value">' + escapeHtml(supplier.supplier_code) + '</span></div>';
-                html += '<div class="info-row"><span class="info-label">联系电话：</span><span class="info-value">' + (supplier.phone || '-') + '</span></div>';
+                html += '<div class="info-row"><span class="info-label">联系电话：</span><span class="info-value">' + escapeHtml(supplier.phone || '-') + '</span></div>';
                 if (supplier.remark) {
                     html += '<div class="info-row"><span class="info-label">备注：</span><span class="info-value">' + escapeHtml(supplier.remark) + '</span></div>';
                 }
 
+                html += '<div class="summary-box">';
+                if (primaryContact) {
+                    html += '<div class="summary-row"><strong>主联系人：</strong><span>' + escapeHtml(primaryContact.contact_name) + '</span><span>' + escapeHtml(primaryContact.position || '-') + '</span></div>';
+                    html += '<div class="summary-row"><strong>联系方式：</strong><span>' + escapeHtml(primaryContact.mobile || primaryContact.phone || '-') + '</span>';
+                    if (primaryContact.wechat) html += '<span>微信：' + escapeHtml(primaryContact.wechat) + '</span>';
+                    if (primaryContact.email) html += '<span>邮箱：' + escapeHtml(primaryContact.email) + '</span>';
+                    html += '</div>';
+                } else {
+                    html += '<div class="summary-row"><strong>主联系人：</strong><span>暂无联系人信息</span></div>';
+                }
+                html += '</div>';
+
                 if (supplier.contacts && supplier.contacts.length > 0) {
+                    html += '<button class="toggle-details" type="button" data-collapsed-label="查看详情（' + supplier.contacts.length + ' 位联系人）" data-expanded-label="收起详情" onclick="toggleDetails(\'' + detailsId + '\', this)">查看详情（' + supplier.contacts.length + ' 位联系人）</button>';
+                    html += '<div class="details-panel" id="' + detailsId + '" style="display:none">';
                     html += '<div class="contacts-section"><h6>联系人信息</h6>';
                     supplier.contacts.forEach(contact => {
-                        html += '<div class="contact-item' + (contact.is_primary ? ' is-primary' : '') + '">';
-                        if (contact.is_primary) html += '<span class="primary-badge">主要</span>';
-                        html += '<div class="contact-details">';
-                        html += '<div class="contact-row"><span class="contact-label">姓名：</span><span class="contact-value">' + escapeHtml(contact.contact_name) + '</span><span class="contact-label" style="margin-left:12px">职位：</span><span class="contact-value">' + escapeHtml(contact.position || '-') + '</span></div>';
-                        html += '<div class="contact-row"><span class="contact-label">手机：</span><span class="contact-value">' + escapeHtml(contact.mobile || contact.phone || '-') + '</span><span class="contact-label" style="margin-left:12px">邮箱：</span><span class="contact-value">' + escapeHtml(contact.email || '-') + '</span></div>';
-                        html += '<div class="contact-row"><span class="contact-label">微信：</span><span class="contact-value">' + escapeHtml(contact.wechat || '-') + '</span>';
-                        if (contact.remark) {
-                            html += '<span class="contact-label" style="margin-left:12px">备注：</span><span class="contact-value">' + escapeHtml(contact.remark) + '</span>';
-                        }
-                        html += '</div></div></div>';
+                        html += renderContactDetail(contact);
                     });
-                    html += '</div>';
+                    html += '</div></div>';
                 }
 
                 html += '</div></div>';
@@ -435,6 +499,14 @@
         function goToPage(page) {
             currentPage = page;
             search(false);
+        }
+
+        function toggleDetails(detailsId, btn) {
+            const panel = document.getElementById(detailsId);
+            if (!panel) return;
+            const isHidden = panel.style.display === 'none' || !panel.style.display;
+            panel.style.display = isHidden ? 'block' : 'none';
+            btn.textContent = isHidden ? btn.dataset.expandedLabel : btn.dataset.collapsedLabel;
         }
 
         function escapeHtml(str) {
