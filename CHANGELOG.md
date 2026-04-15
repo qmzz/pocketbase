@@ -1,3 +1,32 @@
+## qmzz fork (unreleased)
+
+### Frontend query page fixes
+
+- Fixed the supplier query page not showing related contacts.
+  - Removed the invalid `expand=supplier_contacts` usage from the suppliers query.
+  - Switched to loading suppliers first, then batch loading `supplier_contacts`, and merging them on the frontend.
+
+- Fixed the keyword search failing with "加载失败".
+  - Removed unsupported cross-collection filter expressions such as `supplier_contacts.contact_name` from the suppliers query.
+  - Implemented dual-source keyword search by querying both `suppliers` and `supplier_contacts`, then merging matched suppliers in the frontend.
+
+- Added filter value escaping helper to reduce query breakage caused by special characters in user input.
+
+### Frontend query page improvements
+
+- Added primary contact summary in the supplier card.
+  - Displays name, position, mobile/phone, WeChat and email when available.
+
+- Added contact details expand/collapse panel in the supplier card.
+
+- Improved empty-state messages.
+  - Distinguishes between "no supplier data yet" and "no matching supplier found".
+
+- Improved status badge rendering.
+  - Added separate visual styles for `合作中`, `暂停`, `停用` and fallback/default states.
+
+---
+
 ## v0.36.9
 
 - Updated the Discord `AuthUser.Name` field to use `global_name` ([#7603](https://github.com/pocketbase/pocketbase/pull/7603); thanks @HansHans135).
