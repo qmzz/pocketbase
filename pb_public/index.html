@@ -257,6 +257,67 @@
         let currentPage = 1;
         const perPage = 20;
 
+        async function fetchJson(url) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+            return await res.json();
+        }
+
+        function escapeFilterValue(value) {
+            return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        }
+
+        function buildSupplierFilter(keyword, supplierType, status) {
+            const conditions = [];
+
+            if (keyword) {
+                const q = escapeFilterValue(keyword);
+                conditions.push(`(supplier_name ~ "${q}" || supplier_code ~ "${q}" || phone ~ "${q}")`);
+            }
+
+            if (supplierType) conditions.push(`supplier_type = "${escapeFilterValue(supplierType)}"`);
+            if (status) conditions.push(`status = "${escapeFilterValue(status)}"`);
+
+            return conditions.length > 0 ? conditions.join(' && ') : '';
+        }
+
+        function buildContactFilter(keyword) {
+            if (!keyword) return '';
+            const q = escapeFilterValue(keyword);
+            return `(contact_name ~ "${q}" || mobile ~ "${q}" || phone ~ "${q}" || wechat ~ "${q}" || email ~ "${q}")`;
+        }
+
+        function buildIdFilter(ids, supplierType, status) {
+            const conditions = [];
+            if (ids && ids.length > 0) {
+                conditions.push('(' + ids.map(id => `id = "${id}"`).join(' || ') + ')');
+            }
+            if (supplierType) conditions.push('supplier_type = "' + supplierType + '"');
+            if (status) conditions.push('status = "' + status + '"');
+            return conditions.length > 0 ? conditions.join(' && ') : '';
+        }
+
+        async function loadContactsForSuppliers(suppliers) {
+            if (!suppliers || suppliers.length === 0) return suppliers;
+
+            const supplierIds = suppliers.map(item => item.id);
+            const contactsFilter = '(' + supplierIds.map(id => `supplier = "${id}"`).join(' || ') + ')';
+            const contactsUrl = `${API_BASE}/api/collections/supplier_contacts/records?perPage=500&sort=-is_primary,-created&filter=${encodeURIComponent(contactsFilter)}`;
+            const contactsData = await fetchJson(contactsUrl);
+            const contactMap = {};
+
+            (contactsData.items || []).forEach(contact => {
+                const supplierId = contact.supplier;
+                if (!contactMap[supplierId]) contactMap[supplierId] = [];
+                contactMap[supplierId].push(contact);
+            });
+
+            return suppliers.map(supplier => ({
+                ...supplier,
+                contacts: contactMap[supplier.id] || []
+            }));
+        }
+
         async function search(resetPage = true) {
             if (resetPage) currentPage = 1;
 
@@ -264,18 +325,48 @@
             const supplierType = document.getElementById('supplierType').value;
             const status = document.getElementById('status').value;
 
-            const filter = buildFilter(keyword, supplierType, status);
-            const url = `${API_BASE}/api/collections/suppliers/records?page=${currentPage}&perPage=${perPage}&expand=supplier_contacts&sort=-created${filter ? '&filter=' + encodeURIComponent(filter) : ''}`;
-
             const container = document.getElementById('resultsContainer');
             container.innerHTML = '<div class="loading"><div class="loader">⏳</div><p>加载中...</p></div>';
 
             try {
-                const res = await fetch(url);
-                if (!res.ok) throw new Error('Request failed');
-                const data = await res.json();
+                let mergedItems = [];
+                let data = null;
 
-                if (data.items.length === 0) {
+                if (keyword) {
+                    const supplierFilter = buildSupplierFilter(keyword, supplierType, status);
+                    const supplierUrl = `${API_BASE}/api/collections/suppliers/records?page=1&perPage=200&sort=-created${supplierFilter ? '&filter=' + encodeURIComponent(supplierFilter) : ''}`;
+                    const supplierData = await fetchJson(supplierUrl);
+
+                    const contactFilter = buildContactFilter(keyword);
+                    const contactUrl = `${API_BASE}/api/collections/supplier_contacts/records?page=1&perPage=200&sort=-created${contactFilter ? '&filter=' + encodeURIComponent(contactFilter) : ''}`;
+                    const contactData = await fetchJson(contactUrl);
+                    const matchedSupplierIds = [...new Set((contactData.items || []).map(item => item.supplier).filter(Boolean))];
+
+                    let supplierByContacts = { items: [] };
+                    if (matchedSupplierIds.length > 0) {
+                        const idFilter = buildIdFilter(matchedSupplierIds, supplierType, status);
+                        const byContactsUrl = `${API_BASE}/api/collections/suppliers/records?page=1&perPage=200&sort=-created&filter=${encodeURIComponent(idFilter)}`;
+                        supplierByContacts = await fetchJson(byContactsUrl);
+                    }
+
+                    const unique = new Map();
+                    [...(supplierData.items || []), ...(supplierByContacts.items || [])].forEach(item => unique.set(item.id, item));
+                    mergedItems = Array.from(unique.values());
+                    mergedItems = await loadContactsForSuppliers(mergedItems);
+
+                    data = {
+                        items: mergedItems,
+                        totalItems: mergedItems.length,
+                        totalPages: 1
+                    };
+                } else {
+                    const filter = buildSupplierFilter('', supplierType, status);
+                    const url = `${API_BASE}/api/collections/suppliers/records?page=${currentPage}&perPage=${perPage}&sort=-created${filter ? '&filter=' + encodeURIComponent(filter) : ''}`;
+                    data = await fetchJson(url);
+                    data.items = await loadContactsForSuppliers(data.items || []);
+                }
+
+                if (!data.items || data.items.length === 0) {
                     container.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>';
                     return;
                 }
@@ -285,28 +376,6 @@
                 console.error('Search failed:', err);
                 container.innerHTML = '<div class="empty"><div class="icon">⚠️</div><p>加载失败</p></div>';
             }
-        }
-
-        function buildFilter(keyword, supplierType, status) {
-            const conditions = [];
-
-            if (keyword) {
-                conditions.push(
-                    `(${
-                        'supplier_name ~ "' + keyword + '" || ' +
-                        'supplier_code ~ "' + keyword + '" || ' +
-                        'phone ~ "' + keyword + '" || ' +
-                        'supplier_contacts.contact_name ~ "' + keyword + '" || ' +
-                        'supplier_contacts.mobile ~ "' + keyword + '" || ' +
-                        'supplier_contacts.wechat ~ "' + keyword + '"'
-                    })`
-                );
-            }
-
-            if (supplierType) conditions.push('supplier_type = "' + supplierType + '"');
-            if (status) conditions.push('status = "' + status + '"');
-
-            return conditions.length > 0 ? conditions.join(' && ') : '';
         }
 
         function renderResults(data) {
@@ -330,15 +399,15 @@
                     html += '<div class="info-row"><span class="info-label">备注：</span><span class="info-value">' + escapeHtml(supplier.remark) + '</span></div>';
                 }
 
-                if (supplier.expand && supplier.expand.supplier_contacts && supplier.expand.supplier_contacts.length > 0) {
+                if (supplier.contacts && supplier.contacts.length > 0) {
                     html += '<div class="contacts-section"><h6>联系人信息</h6>';
-                    supplier.expand.supplier_contacts.forEach(contact => {
+                    supplier.contacts.forEach(contact => {
                         html += '<div class="contact-item' + (contact.is_primary ? ' is-primary' : '') + '">';
                         if (contact.is_primary) html += '<span class="primary-badge">主要</span>';
                         html += '<div class="contact-details">';
-                        html += '<div class="contact-row"><span class="contact-label">姓名：</span><span class="contact-value">' + escapeHtml(contact.contact_name) + '</span><span class="contact-label" style="margin-left:12px">职位：</span><span class="contact-value">' + (contact.position || '-') + '</span></div>';
-                        html += '<div class="contact-row"><span class="contact-label">手机：</span><span class="contact-value">' + (contact.mobile || '-') + '</span><span class="contact-label" style="margin-left:12px">邮箱：</span><span class="contact-value">' + (contact.email || '-') + '</span></div>';
-                        html += '<div class="contact-row"><span class="contact-label">微信：</span><span class="contact-value">' + (contact.wechat || '-') + '</span>';
+                        html += '<div class="contact-row"><span class="contact-label">姓名：</span><span class="contact-value">' + escapeHtml(contact.contact_name) + '</span><span class="contact-label" style="margin-left:12px">职位：</span><span class="contact-value">' + escapeHtml(contact.position || '-') + '</span></div>';
+                        html += '<div class="contact-row"><span class="contact-label">手机：</span><span class="contact-value">' + escapeHtml(contact.mobile || contact.phone || '-') + '</span><span class="contact-label" style="margin-left:12px">邮箱：</span><span class="contact-value">' + escapeHtml(contact.email || '-') + '</span></div>';
+                        html += '<div class="contact-row"><span class="contact-label">微信：</span><span class="contact-value">' + escapeHtml(contact.wechat || '-') + '</span>';
                         if (contact.remark) {
                             html += '<span class="contact-label" style="margin-left:12px">备注：</span><span class="contact-value">' + escapeHtml(contact.remark) + '</span>';
                         }
