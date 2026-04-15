@@ -1,6 +1,7 @@
 import PageIndex from "@/components/PageIndex.svelte";
 import PageLogs from "@/components/logs/PageLogs.svelte";
 import PageRecords from "@/components/records/PageRecords.svelte";
+import PageSupplierSearch from "@/components/records/PageSupplierSearch.svelte";
 import PageApplication from "@/components/settings/PageApplication.svelte";
 import PageBackups from "@/components/settings/PageBackups.svelte";
 import PageCrons from "@/components/settings/PageCrons.svelte";
@@ -14,6 +15,11 @@ import { isTokenExpired } from "pocketbase";
 import { wrap } from "svelte-spa-router/wrap";
 
 const routes = {
+    "/": wrap({
+        component: PageSupplierSearch,
+        userData: { showAppSidebar: false },
+    }),
+
     "/pbinstal/:token": wrap({
         asyncComponent: () => import("@/components/base/PageInstaller.svelte"),
         conditions: [(details) => {
