@@ -1,0 +1,7 @@
+.git
+.github
+ui/node_modules
+ui/dist
+tests
+**/*_test.go
+pb_data
