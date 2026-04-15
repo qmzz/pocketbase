@@ -8,7 +8,7 @@
         if (ApiClient.authStore.isValid) {
             replace("/collections");
         } else {
-            replace("/");
+            ApiClient.logout();
         }
     }
 </script>

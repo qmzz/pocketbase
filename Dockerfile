@@ -26,6 +26,7 @@ RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /pb
 
 COPY --from=builder /out/pocketbase /pb/pocketbase
+COPY pb_public /pb/pb_public
 
 EXPOSE 8090
 
