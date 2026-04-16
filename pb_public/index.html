@@ -135,11 +135,19 @@
         
         .info-row {
             display: flex;
-            gap: 8px;
+            gap: 16px;
             margin-bottom: 8px;
             font-size: 14px;
+            flex-wrap: wrap;
+            align-items: baseline;
         }
-        .info-label { font-weight: 600; color: #888; min-width: 85px; }
+        .info-field {
+            display: inline-flex;
+            gap: 6px;
+            align-items: baseline;
+            flex-wrap: wrap;
+        }
+        .info-label { font-weight: 600; color: #888; min-width: auto; }
         
         .contacts-section {
             margin-top: 15px;
@@ -152,11 +160,12 @@
             color: #444;
         }
         .contact-item {
-            padding: 12px;
-            margin-bottom: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
             background: #f9f9f9;
             border-radius: 6px;
             position: relative;
+            font-size: 14px;
         }
         .contact-item.is-primary { border-left: 3px solid #4a90d9; }
         .primary-badge {
@@ -169,15 +178,15 @@
             color: #fff;
             border-radius: 10px;
         }
-        .contact-row {
+        .contact-line {
             display: flex;
-            gap: 6px;
+            gap: 12px;
             align-items: baseline;
             flex-wrap: wrap;
-            margin-bottom: 4px;
-            font-size: 14px;
+            padding-right: 56px;
         }
-        .contact-label { font-weight: 600; color: #888; }
+        .contact-field { white-space: nowrap; }
+        .contact-label { font-weight: 600; color: #888; margin-right: 4px; }
         .summary-box {
             margin-top: 12px;
             padding: 12px;
@@ -318,7 +327,7 @@
         function buildContactFilter(keyword) {
             if (!keyword) return '';
             const q = escapeFilterValue(keyword);
-            return `(contact_name ~ "${q}" || mobile ~ "${q}" || phone ~ "${q}" || wechat ~ "${q}" || email ~ "${q}")`;
+            return `(contact_name ~ "${q}" || mobile ~ "${q}" || wechat ~ "${q}" || email ~ "${q}")`;
         }
 
         function buildIdFilter(ids, supplierType, status) {
@@ -423,13 +432,12 @@
         function renderContactDetail(contact) {
             let html = '<div class="contact-item' + (contact.is_primary ? ' is-primary' : '') + '">';
             if (contact.is_primary) html += '<span class="primary-badge">主要</span>';
-            html += '<div class="contact-details">';
-            html += '<div class="contact-row"><span class="contact-label">姓名：</span><span class="contact-value">' + escapeHtml(contact.contact_name) + '</span><span class="contact-label" style="margin-left:12px">职位：</span><span class="contact-value">' + escapeHtml(contact.position || '-') + '</span></div>';
-            html += '<div class="contact-row"><span class="contact-label">手机：</span><span class="contact-value">' + escapeHtml(contact.mobile || contact.phone || '-') + '</span><span class="contact-label" style="margin-left:12px">邮箱：</span><span class="contact-value">' + escapeHtml(contact.email || '-') + '</span></div>';
-            html += '<div class="contact-row"><span class="contact-label">微信：</span><span class="contact-value">' + escapeHtml(contact.wechat || '-') + '</span>';
-            if (contact.remark) {
-                html += '<span class="contact-label" style="margin-left:12px">备注：</span><span class="contact-value">' + escapeHtml(contact.remark) + '</span>';
-            }
+            html += '<div class="contact-line">';
+            html += '<span class="contact-field"><span class="contact-label">姓名：</span>' + escapeHtml(contact.contact_name) + '</span>';
+            html += '<span class="contact-field"><span class="contact-label">职位：</span>' + escapeHtml(contact.position || '-') + '</span>';
+            html += '<span class="contact-field"><span class="contact-label">手机：</span>' + escapeHtml(contact.mobile || '-') + '</span>';
+            if (contact.email) html += '<span class="contact-field"><span class="contact-label">邮箱：</span>' + escapeHtml(contact.email) + '</span>';
+            if (contact.wechat) html += '<span class="contact-field"><span class="contact-label">微信：</span>' + escapeHtml(contact.wechat) + '</span>';
             html += '</div></div></div>';
             return html;
         }
@@ -452,21 +460,23 @@
                 html += '</div>';
 
                 html += '<div class="card-body">';
-                html += '<div class="info-row"><span class="info-label">供应商编码：</span><span class="info-value">' + escapeHtml(supplier.supplier_code) + '</span></div>';
-                html += '<div class="info-row"><span class="info-label">联系电话：</span><span class="info-value">' + escapeHtml(supplier.phone || '-') + '</span></div>';
-                if (supplier.remark) {
-                    html += '<div class="info-row"><span class="info-label">备注：</span><span class="info-value">' + escapeHtml(supplier.remark) + '</span></div>';
-                }
+                html += '<div class="info-row">';
+                html += '<span class="info-field"><span class="info-label">供应商编码：</span><span class="info-value">' + escapeHtml(supplier.supplier_code) + '</span></span>';
+                html += '<span class="info-field"><span class="info-label">联系电话：</span><span class="info-value">' + escapeHtml(supplier.phone || '-') + '</span></span>';
+                html += '<span class="info-field"><span class="info-label">备注：</span><span class="info-value">' + escapeHtml(supplier.remark || '-') + '</span></span>';
+                html += '</div>';
 
                 html += '<div class="summary-box">';
                 if (primaryContact) {
-                    html += '<div class="summary-row"><strong>主联系人：</strong><span>' + escapeHtml(primaryContact.contact_name) + '</span><span>' + escapeHtml(primaryContact.position || '-') + '</span></div>';
-                    html += '<div class="summary-row"><strong>联系方式：</strong><span>' + escapeHtml(primaryContact.mobile || primaryContact.phone || '-') + '</span>';
-                    if (primaryContact.wechat) html += '<span>微信：' + escapeHtml(primaryContact.wechat) + '</span>';
-                    if (primaryContact.email) html += '<span>邮箱：' + escapeHtml(primaryContact.email) + '</span>';
+                    html += '<div class="contact-line">';
+                    html += '<span class="contact-field"><span class="contact-label">主联系人：</span>' + escapeHtml(primaryContact.contact_name) + '</span>';
+                    html += '<span class="contact-field"><span class="contact-label">职位：</span>' + escapeHtml(primaryContact.position || '-') + '</span>';
+                    html += '<span class="contact-field"><span class="contact-label">手机：</span>' + escapeHtml(primaryContact.mobile || '-') + '</span>';
+                    if (primaryContact.wechat) html += '<span class="contact-field"><span class="contact-label">微信：</span>' + escapeHtml(primaryContact.wechat) + '</span>';
+                    if (primaryContact.email) html += '<span class="contact-field"><span class="contact-label">邮箱：</span>' + escapeHtml(primaryContact.email) + '</span>';
                     html += '</div>';
                 } else {
-                    html += '<div class="summary-row"><strong>主联系人：</strong><span>暂无联系人信息</span></div>';
+                    html += '<div class="summary-row"><strong>联系人信息：</strong><span>暂无联系人信息</span></div>';
                 }
                 html += '</div>';
 
