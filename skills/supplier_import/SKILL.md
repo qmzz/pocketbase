@@ -6,22 +6,37 @@
 
 当用户要求导入供应商信息、批量新增/更新 `suppliers` 与 `supplier_contacts`、从 JSON/CSV/Excel 整理后导入 PocketBase，或通过 API 写入供应商资料时，使用本 skill。
 
-## 已验证环境
+## 安全分离原则
 
-当前项目 PocketBase 地址：
+本 skill 作为项目代码的一部分，**禁止提交真实 PocketBase 地址、账号、密码、token**。
 
-```text
-http://192.168.110.15:8090
+真实连接信息只允许通过以下方式提供：
+
+1. 当前 shell 环境变量
+2. 本地未纳入 git 的 `.env` 文件，例如：`skills/supplier_import/.env`
+3. CI/CD Secret
+
+本仓库只保留占位示例：
+
+```bash
+PB_BASE_URL='http://127.0.0.1:8090'
+PB_ADMIN_EMAIL='admin@example.com'
+PB_ADMIN_PASSWORD='change-me'
+# 或 PB_TOKEN='...'
 ```
 
-已确认集合 schema：
+`.env` 文件必须被 `.gitignore` 排除。
+
+## 集合 schema
+
+脚本默认适配以下集合。如果实际线上 schema 有变化，先查询 PocketBase schema，再调整字段映射。
 
 ### suppliers
 
 - `supplier_code`：供应商编码，必填；输入为空时脚本自动生成 `SUP-xxxxxx`
 - `supplier_name`：供应商名称，必填
-- `supplier_type`：供应商类型，可选值：`生产商` / `经销商` / `服务商` / `其他`
-- `status`：状态，可选值：`潜在` / `合作中` / `暂停` / `停用`；默认 `合作中`
+- `supplier_type`：供应商类型，常见值：`生产商` / `经销商` / `服务商` / `其他`
+- `status`：状态，常见值：`潜在` / `合作中` / `暂停` / `停用`；默认 `合作中`
 - `phone`：联系电话
 - `remark`：备注
 
@@ -43,7 +58,7 @@ http://192.168.110.15:8090
 1. `PB_TOKEN`
 2. `PB_ADMIN_EMAIL` + `PB_ADMIN_PASSWORD`
 
-不要把真实密码写进仓库文件；只在命令环境变量中临时传入。
+不要把真实密码写进仓库文件；只在本地环境变量、`.env` 或 Secret 中临时传入。
 
 ## 输入格式
 
@@ -84,12 +99,21 @@ supplier_name,supplier_code,supplier_type,status,phone,remark,contact_name,posit
 
 ## 常用命令
 
+### 使用本地 `.env`
+
+```bash
+cp skills/supplier_import/.env.example skills/supplier_import/.env
+# 编辑 .env，填入真实地址和凭据
+set -a
+. skills/supplier_import/.env
+set +a
+```
+
 ### 预检，不写入
 
 ```bash
-PB_ADMIN_EMAIL='...' PB_ADMIN_PASSWORD='...' \
 python3 skills/supplier_import/scripts/import_suppliers.py \
-  --base-url http://192.168.110.15:8090 \
+  --base-url "$PB_BASE_URL" \
   --input suppliers.json \
   --dry-run
 ```
@@ -97,9 +121,8 @@ python3 skills/supplier_import/scripts/import_suppliers.py \
 ### 正式导入
 
 ```bash
-PB_ADMIN_EMAIL='...' PB_ADMIN_PASSWORD='...' \
 python3 skills/supplier_import/scripts/import_suppliers.py \
-  --base-url http://192.168.110.15:8090 \
+  --base-url "$PB_BASE_URL" \
   --input suppliers.json
 ```
 
@@ -108,7 +131,7 @@ python3 skills/supplier_import/scripts/import_suppliers.py \
 ```bash
 PB_TOKEN='...' \
 python3 skills/supplier_import/scripts/import_suppliers.py \
-  --base-url http://192.168.110.15:8090 \
+  --base-url "$PB_BASE_URL" \
   --input suppliers.json
 ```
 
@@ -130,4 +153,4 @@ python3 skills/supplier_import/scripts/import_suppliers.py \
 
 - 大批量导入前必须先 `--dry-run`。
 - 正式导入真实业务数据前，应备份 PocketBase 数据库。
-- 不要将账号密码、token 写入 git。
+- 不要将账号密码、token、内网地址写入 git。
