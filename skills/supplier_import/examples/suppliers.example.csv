@@ -1,2 +1,2 @@
 ﻿supplier_name,supplier_code,supplier_type,status,phone,remark,contact_name,position,mobile,email,wechat,is_primary
-示例供应商A,SUP-001,材料供应商,启用,13800000000,示例备注,张三,销售经理,13900000000,zhangsan@example.com,zhangsanwx,true
+示例供应商A,SUP-001,经销商,合作中,13800000000,示例备注,张三,销售经理,13900000000,zhangsan@example.com,zhangsanwx,true

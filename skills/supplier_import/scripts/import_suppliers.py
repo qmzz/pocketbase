@@ -33,6 +33,7 @@ CONTACT_FIELDS = [
     "mobile",
     "email",
     "wechat",
+    "remark",
     "is_primary",
 ]
 
@@ -130,9 +131,12 @@ def parse_bool(value: Any) -> bool:
 
 def normalize_supplier(row: Dict[str, Any]) -> Dict[str, Any]:
     supplier = {field: str(row.get(field, "")).strip() for field in SUPPLIER_FIELDS}
-    supplier.setdefault("status", "启用")
+    supplier.setdefault("status", "合作中")
     if not supplier.get("status"):
-        supplier["status"] = "启用"
+        supplier["status"] = "合作中"
+    if not supplier.get("supplier_code") and supplier.get("supplier_name"):
+        # supplier_code is required by the current PocketBase schema.
+        supplier["supplier_code"] = "SUP-" + str(abs(hash(supplier["supplier_name"])) % 1000000).zfill(6)
     return compact_dict(supplier)
 
 
