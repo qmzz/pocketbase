@@ -1,0 +1,20 @@
+[
+  {
+    "supplier_name": "示例供应商A",
+    "supplier_code": "SUP-001",
+    "supplier_type": "材料供应商",
+    "status": "启用",
+    "phone": "13800000000",
+    "remark": "示例备注",
+    "contacts": [
+      {
+        "contact_name": "张三",
+        "position": "销售经理",
+        "mobile": "13900000000",
+        "email": "zhangsan@example.com",
+        "wechat": "zhangsanwx",
+        "is_primary": true
+      }
+    ]
+  }
+]
