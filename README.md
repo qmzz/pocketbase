@@ -19,6 +19,84 @@
 
 **For documentation and examples, please visit https://pocketbase.io/docs.**
 
+## Project customizations
+
+This fork includes supplier-management customizations on top of upstream PocketBase.
+
+### Supplier query page
+
+The static query page under `pb_public/index.html` provides a simple supplier information search UI based on PocketBase REST APIs.
+
+It currently reads from:
+
+- `suppliers`
+- `supplier_contacts`
+
+The frontend loads suppliers first, then batch-loads related contacts from `supplier_contacts` and merges them in the browser. This avoids unsupported cross-collection filter/expand usage in PocketBase list queries.
+
+### Supplier import skill
+
+A reusable supplier import skill is available at:
+
+```text
+skills/supplier_import
+```
+
+It imports supplier and contact data through PocketBase REST APIs.
+
+Supported input formats:
+
+- JSON
+- CSV
+
+Default target collections:
+
+- `suppliers`
+- `supplier_contacts`
+
+Common usage:
+
+```bash
+# Copy local-only config template.
+cp skills/supplier_import/.env.example skills/supplier_import/.env
+
+# Edit .env locally, then load it into current shell.
+set -a
+. skills/supplier_import/.env
+set +a
+
+# Validate input without writing data.
+python3 skills/supplier_import/scripts/import_suppliers.py \
+  --base-url "$PB_BASE_URL" \
+  --input suppliers.json \
+  --dry-run
+
+# Import after validation.
+python3 skills/supplier_import/scripts/import_suppliers.py \
+  --base-url "$PB_BASE_URL" \
+  --input suppliers.json
+```
+
+The importer supports upsert by default:
+
+- suppliers are matched by `supplier_code`; if no code is provided, by `supplier_name`
+- contacts are matched by `supplier + contact_name + mobile`; if no mobile is provided, by `supplier + contact_name`
+
+### Secrets and environment separation
+
+Do **not** commit real PocketBase URLs, admin accounts, passwords, or tokens.
+
+Use local environment variables or a local `.env` file instead:
+
+```bash
+PB_BASE_URL=http://127.0.0.1:8090
+PB_ADMIN_EMAIL=admin@example.com
+PB_ADMIN_PASSWORD=change-me
+# PB_TOKEN=
+```
+
+The repository ignores local env files such as `.env` and `skills/**/.env`; only `.env.example` templates should be committed.
+
 > [!WARNING]
 > Please keep in mind that PocketBase is still under active development
 > and therefore full backward compatibility is not guaranteed before reaching v1.0.0.
